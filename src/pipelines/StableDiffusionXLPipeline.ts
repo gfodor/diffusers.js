@@ -1,7 +1,7 @@
 import { PNDMScheduler, PNDMSchedulerConfig } from '@/schedulers/PNDMScheduler'
 import { CLIPTokenizer } from '../tokenizers/CLIPTokenizer'
-import { cat, randomNormalTensor } from '@/util/Tensor'
-import { Tensor } from '@xenova/transformers'
+import { randomNormalTensor } from '@/util/Tensor'
+import { Tensor, cat } from '@xenova/transformers'
 import { dispatchProgress, loadModel, PretrainedOptions, ProgressCallback, ProgressStatus, sessionRun } from './common'
 import { getModelFile, getModelJSON } from '../hub'
 import { Session } from '../backends'
@@ -48,6 +48,7 @@ export class StableDiffusionXLPipeline extends PipelineBase {
     this.tokenizer = tokenizer
     this.tokenizer2 = tokenizer2
     this.scheduler = scheduler
+    this.vaeScaleFactor = 8
   }
 
   static createScheduler (config: PNDMSchedulerConfig) {
@@ -85,7 +86,7 @@ export class StableDiffusionXLPipeline extends PipelineBase {
     return new StableDiffusionXLPipeline(unet, vae, textEncoder, textEncoder2, tokenizer, tokenizer2, scheduler)
   }
 
-  async encodePromptXl (prompt: string, tokenizer: CLIPTokenizer, textEncoder: Session) {
+  async encodePromptXl (prompt: string, tokenizer: CLIPTokenizer, textEncoder: Session, is64: boolean = false, jsonIndex = -1) {
     const tokens = tokenizer(
       prompt,
       {
@@ -97,41 +98,99 @@ export class StableDiffusionXLPipeline extends PipelineBase {
     )
 
     const inputIds = tokens.input_ids
-    const tensor = new Tensor('int32', Int32Array.from(inputIds.flat()), [1, inputIds.length])
-    // @ts-ignore
+
+    const tensor = 
+      is64 ?
+      new Tensor('int64', BigInt64Array.from(inputIds.flat().map(x => BigInt(x))), [1, inputIds.length]) :
+      new Tensor('int32', Int32Array.from(inputIds.flat()), [1, inputIds.length])
+
     const result = await sessionRun(textEncoder, { input_ids: tensor })
-    const {
-      last_hidden_state: lastHiddenState,
-      pooler_output: poolerOutput,
-      // hidden_states: hiddenStates,
-      'hidden_states.11': hiddenStates,
-    } = result
-    return { lastHiddenState, poolerOutput, hiddenStates }
+
+   return result
   }
 
   async getPromptEmbedsXlClassifierFree (prompt: string, negativePrompt: string|undefined) {
-    const promptEmbeds = await this.encodePromptXl(prompt, this.tokenizer, this.textEncoder)
-    const negativePromptEmbeds = await this.encodePromptXl(negativePrompt || '', this.tokenizer, this.textEncoder)
+    const promptEmbeds = await this.encodePromptXl(prompt, this.tokenizer, this.textEncoder, false, 1)
+    let num1HiddenStates = 0
 
-    const promptEmbeds2 = await this.encodePromptXl(prompt, this.tokenizer2, this.textEncoder2)
-    const negativePromptEmbeds2 = await this.encodePromptXl(negativePrompt || '', this.tokenizer2, this.textEncoder2)
+    for (let i = 0; i < 100; i++) {
+      if (promptEmbeds[`hidden_states.${i}`] === undefined) {
+        break
+      }
+
+      num1HiddenStates++
+    }
+
+    let posHiddenStates = promptEmbeds[`hidden_states.${num1HiddenStates - 2}`]
+
+    let negHiddenStates
+
+    if (negativePrompt) {
+      const negativePromptEmbeds = await this.encodePromptXl(negativePrompt || '', this.tokenizer, this.textEncoder)
+      negHiddenStates = negativePromptEmbeds[`hidden_states.${num1HiddenStates - 2}`]
+    }
+
+    const promptEmbeds2 = await this.encodePromptXl(prompt, this.tokenizer2, this.textEncoder2, true, 2)
+
+    let num2HiddenStates = 0
+    for (let i = 0; i < 100; i++) {
+      if (promptEmbeds2[`hidden_states.${i}`] === undefined) {
+        break
+      }
+
+      num2HiddenStates++
+    }
+
+    posHiddenStates = cat([posHiddenStates, promptEmbeds2[`hidden_states.${num2HiddenStates - 2}`]], -1)
+    const posTextEmbeds = promptEmbeds2.text_embeds
+    let negTextEmbeds
+
+    if (negativePrompt) {
+      const negativePromptEmbeds2 = await this.encodePromptXl(negativePrompt || '', this.tokenizer2, this.textEncoder2, true)
+      negHiddenStates = cat([negHiddenStates, negativePromptEmbeds2[`hidden_states.${num2HiddenStates - 2}`]], -1)
+      negTextEmbeds = negativePromptEmbeds2.text_embeds
+    } else {
+      negHiddenStates = posHiddenStates.mul(0)
+      negTextEmbeds = posTextEmbeds.mul(0)
+    }
 
     return {
-      hiddenStates: cat([
-        cat([negativePromptEmbeds.hiddenStates, negativePromptEmbeds2.hiddenStates], -1),
-        cat([promptEmbeds.hiddenStates, promptEmbeds2.hiddenStates], -1),
-      ]),
-      textEmbeds: cat([randomNormalTensor(negativePromptEmbeds2.lastHiddenState.dims), randomNormalTensor(promptEmbeds2.lastHiddenState.dims)]),
+      lastHiddenState: cat([negHiddenStates, posHiddenStates], 0),
+      textEmbeds: cat([negTextEmbeds, posTextEmbeds], 0),
     }
   }
 
   async getPromptEmbedsXl (prompt: string) {
-    const promptEmbeds = await this.encodePromptXl(prompt, this.tokenizer, this.textEncoder)
-    const promptEmbeds2 = await this.encodePromptXl(prompt, this.tokenizer2, this.textEncoder2)
+    const promptEmbeds = await this.encodePromptXl(prompt, this.tokenizer, this.textEncoder, false, 1)
+    let num1HiddenStates = 0
+
+    for (let i = 0; i < 100; i++) {
+      if (promptEmbeds[`hidden_states.${i}`] === undefined) {
+        break
+      }
+
+      num1HiddenStates++
+    }
+
+    let posHiddenStates = promptEmbeds[`hidden_states.${num1HiddenStates - 2}`]
+
+    const promptEmbeds2 = await this.encodePromptXl(prompt, this.tokenizer2, this.textEncoder2, true, 2)
+
+    let num2HiddenStates = 0
+    for (let i = 0; i < 100; i++) {
+      if (promptEmbeds2[`hidden_states.${i}`] === undefined) {
+        break
+      }
+
+      num2HiddenStates++
+    }
+
+    posHiddenStates = cat([posHiddenStates, promptEmbeds2[`hidden_states.${num2HiddenStates - 2}`]], -1)
+    const posTextEmbeds = promptEmbeds2.text_embeds
 
     return {
-      hiddenStates: cat([promptEmbeds.hiddenStates, promptEmbeds2.hiddenStates], -1),
-      textEmbeds: promptEmbeds2.lastHiddenState,
+      lastHiddenState: cat([posHiddenStates], 0),
+      textEmbeds: cat([posTextEmbeds], 0),
     }
   }
 
@@ -171,17 +230,18 @@ export class StableDiffusionXLPipeline extends PipelineBase {
 
     const latentShape = [batchSize, 4, width / 8, height / 8]
     let latents = randomNormalTensor(latentShape, undefined, undefined, 'float32', seed) // Normal latents used in Text-to-Image
+
     let denoised: Tensor
     const timesteps = this.scheduler.timesteps.data
     let humanStep = 1
     let cachedImages: Tensor[]|null = null
 
     const timeIds = this.getTimeEmbeds(width, height, doClassifierFreeGuidance)
-    const hiddenStates = promptEmbeds.hiddenStates
+    const lastHiddenState = promptEmbeds.lastHiddenState
     const textEmbeds = promptEmbeds.textEmbeds
 
     for (const step of timesteps) {
-      const timestep = new Tensor(new Float32Array([step]))
+      const timestep = new Tensor(new BigInt64Array([BigInt(step)]))
       await dispatchProgress(input.progressCallback, {
         status: ProgressStatus.RunningUnet,
         unetTimestep: humanStep,
@@ -193,13 +253,14 @@ export class StableDiffusionXLPipeline extends PipelineBase {
         {
           sample: latentInput,
           timestep,
-          encoder_hidden_states: hiddenStates,
+          encoder_hidden_states: lastHiddenState,
           text_embeds: textEmbeds,
           time_ids: timeIds,
         },
       )
 
       let noisePred = noise.out_sample
+
       if (doClassifierFreeGuidance) {
         const [noisePredUncond, noisePredText] = [
           noisePred.slice([0, 1]),
