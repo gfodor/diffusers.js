@@ -1,14 +1,14 @@
-import { PNDMScheduler, PNDMSchedulerConfig } from '@/schedulers/PNDMScheduler'
 import { CLIPTokenizer } from '../tokenizers/CLIPTokenizer'
+import { GetModelFileOptions } from '@/hub/common'
+import { LCMScheduler } from '@/schedulers/LCMScheduler'
+import { PipelineBase } from '@/pipelines/PipelineBase'
+import { Session } from '../backends'
 import { randomNormalTensor } from '@/util/Tensor'
+import { PNDMScheduler, PNDMSchedulerConfig } from '@/schedulers/PNDMScheduler'
+import { getModelFile, getModelJSON } from '../hub'
 import { Tensor, cat } from '@xenova/transformers'
 import { dispatchProgress, loadModel, PretrainedOptions, ProgressCallback, ProgressStatus, sessionRun } from './common'
-import { getModelFile, getModelJSON } from '../hub'
-import { Session } from '../backends'
-import { GetModelFileOptions } from '@/hub/common'
-import { SchedulerConfig } from '@/schedulers/SchedulerBase'
-import { PipelineBase } from '@/pipelines/PipelineBase'
-import { LCMScheduler } from '@/schedulers/LCMScheduler'
+
 
 export interface StableDiffusionXLInput {
   prompt: string
@@ -168,7 +168,7 @@ export class StableDiffusionXLPipeline extends PipelineBase {
   getTimeEmbeds (width: number, height: number) {
     return new Tensor(
       'float32',
-      Float32Array.from([height, width, 0, 0, height, width]),
+      [height, width, 0, 0, height, width],
       [1, 6],
     )
   }
@@ -186,7 +186,8 @@ export class StableDiffusionXLPipeline extends PipelineBase {
       status: ProgressStatus.EncodingPrompt,
     })
 
-    const promptEmbeds = await this.getPromptEmbedsXl(input.prompt, input.negativePrompt)
+    const hasGuidance = guidanceScale >= 1
+    const promptEmbeds = await this.getPromptEmbedsXl(input.prompt, hasGuidance ? input.negativePrompt : '')
 
     const latentShape = [batchSize, 4, width / 8, height / 8]
     let latents = randomNormalTensor(latentShape, undefined, undefined, 'float32', seed) // Normal latents used in Text-to-Image
@@ -216,24 +217,24 @@ export class StableDiffusionXLPipeline extends PipelineBase {
         },
       )
 
-      const uncondNoise = await this.unet.run(
-        {
-          sample: latents,
-          timestep,
-          encoder_hidden_states: promptEmbeds.negative.lastHiddenState,
-          text_embeds: promptEmbeds.negative.textEmbeds,
-          time_ids: timeIds,
-        },
-      )
-
       let noisePred
 
-      if (guidanceScale > 0) {
+      if (hasGuidance) {
+        const uncondNoise = await this.unet.run(
+          {
+            sample: latents,
+            timestep,
+            encoder_hidden_states: promptEmbeds.negative.lastHiddenState,
+            text_embeds: promptEmbeds.negative.textEmbeds,
+            time_ids: timeIds,
+          },
+        )
+
         const noisePredUncond = uncondNoise.out_sample
         const noisePredText = textNoise.out_sample
         noisePred = noisePredUncond.add(noisePredText.sub(noisePredUncond).mul(guidanceScale))
       } else {
-        noisePred = uncondNoise.out_sample
+        noisePred = textNoise.out_sample
       }
 
       const schedulerOutput = this.scheduler.step(
