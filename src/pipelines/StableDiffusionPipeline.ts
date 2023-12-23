@@ -15,6 +15,7 @@ export interface StableDiffusionInput {
   seed?: string
   width?: number
   height?: number
+  hasTimestepCond?: boolean
   numInferenceSteps: number
   sdV1?: boolean
   progressCallback?: ProgressCallback

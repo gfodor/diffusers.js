@@ -17,6 +17,7 @@ export interface StableDiffusionInput {
   height?: number
   numInferenceSteps: number
   sdV1?: boolean
+  hasTimestepCond?: boolean
   progressCallback?: ProgressCallback
   runVaeOnEachStep?: boolean
   img2imgFlag?: boolean

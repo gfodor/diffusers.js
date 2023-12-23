@@ -18,6 +18,7 @@ export interface StableDiffusionXLInput {
   width?: number
   height?: number
   numInferenceSteps: number
+  hasTimestepCond?: boolean
   sdV1?: boolean
   progressCallback?: ProgressCallback
   runVaeOnEachStep?: boolean
@@ -186,7 +187,7 @@ export class StableDiffusionXLPipeline extends PipelineBase {
       status: ProgressStatus.EncodingPrompt,
     })
 
-    const hasGuidance = guidanceScale >= 1
+    const hasGuidance = guidanceScale >= 0.01
     const promptEmbeds = await this.getPromptEmbedsXl(input.prompt, hasGuidance ? input.negativePrompt : '')
 
     const latentShape = [batchSize, 4, width / 8, height / 8]
@@ -207,8 +208,16 @@ export class StableDiffusionXLPipeline extends PipelineBase {
         unetTotalSteps: timesteps.length,
       })
 
-      const textNoise = await this.unet.run(
-        {
+      const textNoise = await this.unet.run(input.hasTimestepCond
+        ? {
+          sample: latents,
+          timestep,
+          timestep_cond: randomNormalTensor([1, 256], undefined, undefined, 'float32', seed),
+          encoder_hidden_states: promptEmbeds.positive.lastHiddenState,
+          text_embeds: promptEmbeds.positive.textEmbeds,
+          time_ids: timeIds,
+        }
+        : {
           sample: latents,
           timestep,
           encoder_hidden_states: promptEmbeds.positive.lastHiddenState,
@@ -220,15 +229,22 @@ export class StableDiffusionXLPipeline extends PipelineBase {
       let noisePred
 
       if (hasGuidance) {
-        const uncondNoise = await this.unet.run(
-          {
+        const uncondNoise = await this.unet.run(input.hasTimestepCond
+          ? {
+            sample: latents,
+            timestep,
+            encoder_hidden_states: promptEmbeds.negative.lastHiddenState,
+            timestep_cond: randomNormalTensor([1, 256], undefined, undefined, 'float32', seed),
+            text_embeds: promptEmbeds.negative.textEmbeds,
+            time_ids: timeIds,
+          }
+          : {
             sample: latents,
             timestep,
             encoder_hidden_states: promptEmbeds.negative.lastHiddenState,
             text_embeds: promptEmbeds.negative.textEmbeds,
             time_ids: timeIds,
-          },
-        )
+          })
 
         const noisePredUncond = uncondNoise.out_sample
         const noisePredText = textNoise.out_sample
