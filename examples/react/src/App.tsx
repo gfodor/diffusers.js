@@ -46,7 +46,7 @@ interface SelectedPipeline {
   height: number
 }
 
-const REPO_PREFIX = "static/models"
+const REPO_PREFIX = "gfodor"
 
 const pipelines = [
    {
