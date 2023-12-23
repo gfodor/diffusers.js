@@ -28,4 +28,6 @@ yarn-error.log*
 /examples/*/node_modules
 /examples/*/.cache
 /examples/*/dist
+/examples/*/build
 /dist
+/examples/react/public/static
