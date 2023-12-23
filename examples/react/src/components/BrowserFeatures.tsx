@@ -14,11 +14,11 @@ export async function hasFp16 () {
 }
 
 export const BrowserFeatures = () => {
-  const [hasMemory64, setHasMemory64] = useState(false);
-  const [hasSharedMemory64, setHasSharedMemory64] = useState(false);
-  const [hasJspi, setHasJspi] = useState(false);
-  const [hasF16, setHasF16] = useState(false);
-  const [hasGpu, setHasGpu] = useState(false);
+  const [hasMemory64, setHasMemory64] = useState(true);
+  const [hasSharedMemory64, setHasSharedMemory64] = useState(true);
+  const [hasJspi, setHasJspi] = useState(true);
+  const [hasF16, setHasF16] = useState(true);
+  const [hasGpu, setHasGpu] = useState(true);
 
   useEffect(() => {
     memory64().then(value => setHasMemory64(value))
@@ -43,10 +43,9 @@ export const BrowserFeatures = () => {
 
   return (
     <Stack>
-      {!hasMemory64 && <Alert severity="error">You need latest Chrome with "Experimental WebAssembly" flag enabled!</Alert>}
-      {!hasJspi && <Alert severity="error">You need "Experimental WebAssembly JavaScript Promise Integration (JSPI)" flag enabled!</Alert>}
-      {!hasSharedMemory64 && <Alert severity="error">You need Chrome Canary 119 or newer!</Alert>}
-      {!hasF16 && <Alert severity="error">You need Chrome Canary 121 or higher for FP16 support!</Alert>}
+      {(!hasMemory64 || !hasSharedMemory64) && <Alert severity="error">You need latest Chrome with "Experimental WebAssembly" flag enabled - Copy URL: <input type="text" onClick={(e) => e.currentTarget.select()} value="chrome://flags/#enable-experimental-webassembly-features" style={{ fontFamily: "monospace", width: "700px" }}></input></Alert>}
+      {!hasJspi && <Alert severity="error">You need "Experimental WebAssembly JavaScript Promise Integration (JSPI)" flag enabled - <input type="text" onClick={(e) => e.currentTarget.select()} value="chrome://flags/#enable-experimental-webassembly-stack-switching" style={{ fontFamily: "monospace", width: "700px" }}></input></Alert>}
+      {!hasF16 && <Alert severity="error">You need Chrome 121 or higher for FP16 support!</Alert>}
       {!hasGpu && <Alert severity="error">You need a browser with WebGPU support!</Alert>}
     </Stack>
   )
