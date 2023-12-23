@@ -248,6 +248,7 @@ function App() {
         selectedPipeline.repo,
         {
           revision: selectedPipeline?.revision,
+          local: selectedPipeline?.local,
           progressCallback
         }
       )
@@ -377,9 +378,9 @@ function App() {
       <Container maxWidth={false} sx={{ maxWidth: 'auto' }}>
         <BrowserFeatures />
         <Stack alignItems={'center'}>
-          <p>Pixel art and image generator by <a href="https://twitter.com/gfodor">@gfodor</a> -- Built with <a href={"https://github.com/dakenf/diffusers.js"} target={"_blank"}>diffusers.js</a></p>
+          <p>🎁 Pixel art and image generator by <a href="https://twitter.com/gfodor">@gfodor</a> -- Built with <a href={"https://github.com/dakenf/diffusers.js"} target={"_blank"}>diffusers.js</a> - <a href="https://huggingface.co/gfodor">Huggingface</a></p>
         </Stack>
-        <Box sx={{ bgcolor: '#282c34' }} pt={4} pl={3} pr={3} pb={4}>
+        <Box sx={{ borderRadius: "12px", bgcolor: '#282c34' }} pt={4} pl={3} pr={3} pb={4}>
           <Grid maxWidth="md" container spacing={2}>
             <Grid item xs={6}>
               <Stack spacing={2}>
@@ -497,7 +498,7 @@ function App() {
                   imageRendering: selectedPipeline?.pixelArt ? "pixelated" : "crisp-edges",
                   maxWidth: selectedPipeline?.pixelArt ? "768px" : `${selectedPipeline?.width}px`,
                   aspectRatio: "1",
-                  width: "100vw",
+                  width: "50vw",
                   border: '1px dashed #ccc'}} />
                   <button onClick={() => {
                     if (canvasRef.current) {
