@@ -19,7 +19,6 @@ import Divider from '@mui/material/Divider';
 import { Checkbox, FormControl, InputLabel, MenuItem, Select } from '@mui/material'
 import { FormControlLabel } from '@mui/material';
 import { BrowserFeatures, hasFp16 } from './components/BrowserFeatures'
-import { FAQ } from './components/FAQ'
 import { Tensor } from '@xenova/transformers'
 import cv from '@techstark/opencv-js'
 import { StableDiffusionControlNetPipeline } from '../../../dist/pipelines/StableDiffusionControlNetPipeline';
@@ -35,7 +34,6 @@ const darkTheme = createTheme({
 interface SelectedPipeline {
   name: string
   repo: string
-  local: boolean
   revision: string
   fp16: boolean
   steps: number
@@ -48,11 +46,12 @@ interface SelectedPipeline {
   height: number
 }
 
+const REPO_PREFIX = "static/models"
+
 const pipelines = [
    {
      name: 'Pixel Art Detailed Medium Quality (Vega fp16)',
-     repo: 'segmind-vega-pix-detailed-fp16-onnx',
-     local: true,
+     repo: `${REPO_PREFIX}/segmind-vega-pix-detailed-fp16-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: false,
@@ -66,8 +65,7 @@ const pipelines = [
    },
    {
      name: 'Pixel Art Flat Color Medium Quality (Vega fp16)',
-     repo: 'segmind-vega-pix-flat-fp16-onnx',
-     local: true,
+     repo: `${REPO_PREFIX}/segmind-vega-pix-flat-fp16-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: false,
@@ -81,8 +79,7 @@ const pipelines = [
    },
    {
      name: 'Low Quality Turbo Image (Vega RT LCM)',
-     repo: 'segmind-vega-rt-fp16-onnx',
-     local: true,
+     repo: `${REPO_PREFIX}/segmind-vega-rt-fp16-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: false,
@@ -96,8 +93,7 @@ const pipelines = [
    },
    {
      name: 'Medium Quality Turbo Image (SSD1B LCM)',
-     repo: 'lcm-ssd1b-fp16-onnx',
-     local: true,
+     repo: `${REPO_PREFIX}/lcm-ssd1b-fp16-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: true,
@@ -111,8 +107,7 @@ const pipelines = [
    },
    {
      name: 'Pixel Art Detailed High Quality (SSD1B fp32)',
-     repo: 'ssd1b-pix-detailed-fp32-onnx',
-     local: true,
+     repo: `${REPO_PREFIX}/ssd1b-pix-detailed-fp32-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: false,
@@ -126,8 +121,7 @@ const pipelines = [
    },
    {
      name: 'Pixel Art Flat Color High Quality (SSD1B fp32)',
-     repo: 'ssd1b-pix-flat-fp32-onnx',
-     local: true,
+     repo: `${REPO_PREFIX}/ssd1b-pix-flat-fp32-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: false,
@@ -141,8 +135,7 @@ const pipelines = [
    },
    {
      name: 'Medium-High Quality Image (Vega Base)',
-     repo: 'segmind-vega-fp16-onnx',
-     local: true,
+     repo: `${REPO_PREFIX}/segmind-vega-fp16-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: false,
@@ -156,8 +149,7 @@ const pipelines = [
    },
    {
      name: 'High Quality Image (SSD1B Base)',
-     repo: 'ssd1b-fp32-onnx',
-     local: true,
+     repo: `${REPO_PREFIX}/ssd1b-fp32-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: false,
@@ -248,7 +240,6 @@ function App() {
         selectedPipeline.repo,
         {
           revision: selectedPipeline?.revision,
-          local: selectedPipeline?.local,
           progressCallback
         }
       )

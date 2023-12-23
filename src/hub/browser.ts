@@ -18,6 +18,8 @@ export async function getModelFile (modelRepoOrPath: string, fileName: string, f
   const cache = new DbCache()
   await cache.init()
   const cachedData = await cache.retrieveFile(cachePath, options.progressCallback, fileName)
+  const isLocal = modelRepoOrPath.startsWith('static/')
+
   if (cachedData) {
     if (options.returnText) {
       const decoder = new TextDecoder('utf-8')
@@ -40,7 +42,11 @@ export async function getModelFile (modelRepoOrPath: string, fileName: string, f
   try {
     // now try the hub
     if (!response) {
-      response = await downloadFile({ repo: modelRepoOrPath, path: fileName, revision })
+      if (isLocal) {
+        response = await fetch(`${modelRepoOrPath}/${fileName}`)
+      } else {
+        response = await downloadFile({ repo: modelRepoOrPath, path: fileName, revision })
+      }
     }
 
     // read response
