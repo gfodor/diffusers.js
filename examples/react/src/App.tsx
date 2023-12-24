@@ -78,6 +78,20 @@ const pipelines = [
      pixelArt: true,
    },
    {
+     name: 'Medium Quality Small Turbo Image (SDXL Turbo fp16)',
+     repo: `${REPO_PREFIX}/sdxl-turbo-fp16-onnx`,
+     hasImg2Img: false,
+     hasControlNet: false,
+     hasTimestepCond: false,
+     revision: 'main',
+     fp16: true,
+     width: 512,
+     height: 512,
+     guidanceScale: 0.0001,
+     steps: 4,
+     pixelArt: false,
+   },
+   {
      name: 'Low Quality Turbo Image (Vega RT LCM)',
      repo: `${REPO_PREFIX}/segmind-vega-rt-fp16-onnx`,
      hasImg2Img: false,
@@ -105,7 +119,7 @@ const pipelines = [
      steps: 12,
      pixelArt: false,
    },
-   {
+   /*{
      name: 'Pixel Art Detailed High Quality (SSD1B fp32)',
      repo: `${REPO_PREFIX}/ssd1b-pix-detailed-fp32-onnx`,
      hasImg2Img: false,
@@ -132,7 +146,7 @@ const pipelines = [
      steps: 60,
      guidanceScale: 4,
      pixelArt: true,
-   },
+   },*/
    {
      name: 'Medium-High Quality Image (Vega Base)',
      repo: `${REPO_PREFIX}/segmind-vega-fp16-onnx`,
@@ -147,7 +161,7 @@ const pipelines = [
      steps: 60,
      pixelArt: false,
    },
-   {
+   /*{
      name: 'High Quality Image (SSD1B Base)',
      repo: `${REPO_PREFIX}/ssd1b-fp32-onnx`,
      hasImg2Img: false,
@@ -160,7 +174,7 @@ const pipelines = [
      guidanceScale: 5,
      steps: 60,
      pixelArt: false,
-   }
+   }*/
 ]
 
 function App() {
@@ -181,6 +195,9 @@ function App() {
   const [strength, setStrength] = useState(0.8);
   const [controlNetImage, setControlNetImage] = useState<Float32Array>();
   const [runVaeOnEachStep, setRunVaeOnEachStep] = useState(false);
+  const [maxTokens, setMaxTokens] = useState(0)
+  const [totalTokens, setTotalTokens] = useState(0)
+
   useEffect(() => {
     setModelCacheDir('models')
     hasFp16().then(v => {
@@ -195,6 +212,28 @@ function App() {
     setInferenceSteps(selectedPipeline?.steps || 20)
     setGuidanceScale(selectedPipeline?.guidanceScale || 5)
   }, [selectedPipeline])
+
+  useEffect(() => {
+    if (pipeline.current) {
+      // @ts-ignore
+      const maxLength = pipeline.current.tokenizer.model_max_length
+
+      // @ts-ignore
+      const tokens = pipeline.current.tokenizer(
+        prompt,
+        {
+          return_tensor: false,
+          padding: false,
+          // @ts-ignore
+          max_length: maxLength,
+          return_tensor_dtype: 'int32',
+        },
+      )
+
+      setMaxTokens(maxLength)
+      setTotalTokens(tokens.input_ids.length)
+    }
+  }, [prompt, selectedPipeline])
 
   const drawImage = async (image: Tensor) => {
     const canvas = canvasRef.current
@@ -338,7 +377,7 @@ function App() {
   }
 
   const runInference = async () => {
-    if (!pipeline.current) {
+    if (!pipeline.current || totalTokens > maxTokens) {
       return
     }
     setModelState('inferencing')
@@ -382,6 +421,7 @@ function App() {
                   onChange={(e) => setPrompt(e.target.value)}
                   value={prompt}
                 />
+                {maxTokens > 0 && (<span style={{ color: totalTokens > maxTokens ? "#EC5578" : "rgba(255, 255, 255, 0.5)", fontSize: "0.8em" }}>{totalTokens}/{maxTokens} Tokens</span>)}
                 <TextField
                   label="Negative Prompt"
                   variant="standard"
