@@ -78,7 +78,7 @@ const pipelines = [
      pixelArt: true,
    },
    {
-     name: 'Medium Quality Small Turbo Image (SDXL Turbo fp16)',
+     name: '512x512 Turbo (SDXL Turbo fp16)',
      repo: `${REPO_PREFIX}/sdxl-turbo-fp16-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
@@ -92,7 +92,7 @@ const pipelines = [
      pixelArt: false,
    },
    {
-     name: 'Low Quality Turbo Image (Vega RT LCM)',
+     name: '1024x1024 Low Quality Turbo (Vega RT LCM)',
      repo: `${REPO_PREFIX}/segmind-vega-rt-fp16-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
@@ -106,8 +106,8 @@ const pipelines = [
      pixelArt: false,
    },
    {
-     name: 'Medium Quality Turbo Image (SSD1B LCM)',
-     repo: `${REPO_PREFIX}/lcm-ssd1b-fp16-onnx`,
+     name: '1024x1024 Medium Quality Turbo (SSD1B LCM)',
+     repo: `${REPO_PREFIX}/lcm-ssd1b-fp32-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
      hasTimestepCond: true,
@@ -148,7 +148,7 @@ const pipelines = [
      pixelArt: true,
    },*/
    {
-     name: 'Medium-High Quality Image (Vega Base)',
+     name: '1024x1024 Medium-High Quality (Vega Base)',
      repo: `${REPO_PREFIX}/segmind-vega-fp16-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
@@ -162,7 +162,7 @@ const pipelines = [
      pixelArt: false,
    },
    /*{
-     name: 'High Quality Image (SSD1B Base)',
+     name: '1024x1024 High Quality (SSD1B Base)',
      repo: `${REPO_PREFIX}/ssd1b-fp32-onnx`,
      hasImg2Img: false,
      hasControlNet: false,
@@ -496,14 +496,6 @@ function App() {
                       />
                     </>
                 )}
-                <FormControlLabel
-                  label="Check if you want to run VAE after each step"
-                  control={<Checkbox
-                    disabled={modelState != 'ready'}
-                    onChange={(e) => setRunVaeOnEachStep(e.target.checked)}
-                    checked={runVaeOnEachStep}
-                  />}
-                />
                 <FormControl fullWidth>
                   <InputLabel id="demo-simple-select-label">Pipeline</InputLabel>
                     <Select
@@ -527,7 +519,7 @@ function App() {
                 height={selectedPipeline?.pixelArt ? PIXEL_ART_SIZE  : selectedPipeline?.height}
                 style={{ 
                   imageRendering: selectedPipeline?.pixelArt ? "pixelated" : "crisp-edges",
-                  maxWidth: selectedPipeline?.pixelArt ? "768px" : `${selectedPipeline?.width}px`,
+                  maxWidth: selectedPipeline?.pixelArt ? `${PIXEL_ART_SIZE}px` : `${selectedPipeline?.width}px`,
                   aspectRatio: "1",
                   width: "50vw",
                   border: '1px dashed #ccc'}} />
