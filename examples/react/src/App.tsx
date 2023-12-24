@@ -230,7 +230,7 @@ function App() {
         },
       )
 
-      setMaxTokens(maxLength)
+      setMaxTokens(maxLength - 2)
       setTotalTokens(tokens.input_ids.length)
     }
   }, [prompt, selectedPipeline])
