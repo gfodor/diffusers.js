@@ -119,7 +119,7 @@ const pipelines = [
      steps: 12,
      pixelArt: false,
    },
-   /*{
+   {
      name: 'Pixel Art Detailed High Quality (SSD1B fp32)',
      repo: `${REPO_PREFIX}/ssd1b-pix-detailed-fp32-onnx`,
      hasImg2Img: false,
@@ -146,7 +146,7 @@ const pipelines = [
      steps: 60,
      guidanceScale: 4,
      pixelArt: true,
-   },*/
+   },
    {
      name: '1024x1024 Medium-High Quality (Vega Base)',
      repo: `${REPO_PREFIX}/segmind-vega-fp16-onnx`,
@@ -161,7 +161,7 @@ const pipelines = [
      steps: 60,
      pixelArt: false,
    },
-   /*{
+   {
      name: '1024x1024 High Quality (SSD1B Base)',
      repo: `${REPO_PREFIX}/ssd1b-fp32-onnx`,
      hasImg2Img: false,
@@ -174,7 +174,7 @@ const pipelines = [
      guidanceScale: 5,
      steps: 60,
      pixelArt: false,
-   }*/
+   }
 ]
 
 function App() {
@@ -230,7 +230,7 @@ function App() {
         },
       )
 
-      setMaxTokens(maxLength - 2)
+      setMaxTokens(maxLength - 7)
       setTotalTokens(tokens.input_ids.length)
     }
   }, [prompt, selectedPipeline])
